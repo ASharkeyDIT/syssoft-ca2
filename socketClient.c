@@ -26,6 +26,13 @@ int main(){
     int *gids;
     gids = getGids();
 
+    uid_t uid;
+    uid = getuid();
+    int castedUid = (int) uid;
+    char suid[6];
+    sprintf(suid,"%d",castedUid);
+    printf("UID %s \n", suid);
+
     // Socket creation and setup
     int connSocket;
     connSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -132,47 +139,56 @@ int main(){
     }
     
     puts("Moving forward with file");
-    printf("%s : %s", fname, fpath);
+    printf("%s : %s \n", fname, fpath);
 
     char fBuffer[512];
     char serverResponse[500];
     char clientMessage[500];
 
-    while(1){
-        //sends the file name so server knows where to write new file to
-        if(send(connSocket , fname , (strlen(fname) + 1) , 0) < 0){
-             puts("Error sending filename");
+ 
+    //sends the file name so server knows where to write new file to
+    if(send(connSocket , fname , (strlen(fname) + 1) , 0) < 0){
+            puts("Error sending filename");
+    }
+    else{
+
+        if (send(connSocket, suid, strlen(suid), 0) < 0)
+        {
+            puts("Error sending uid");
         }
         else{
 
-            memset(fname,0,strlen(fname));
-        
-            bzero(fBuffer,512);
-            int bSize,blocks = 0;
-            // Read from and transfer file to server
-            while((bSize = fread(fBuffer, sizeof(char), 512, file_open)) > 0) {
-                printf("File transfer in progress %d = %d \n", blocks, bSize);
+            puts("Sent uid");
 
-                if(send(connSocket, fBuffer, bSize,0) < 0){
-                    exit(EXIT_FAILURE);
-                }
+            memset(fname, 0, strlen(fname));
 
-                bzero(fBuffer,512);
-                blocks++;
-            }
-            puts("File transfer concluded");
-            fclose(file_open);
-            
-            //Receive a reply from the server
-            if( recv(connSocket , serverResponse , 500 , 0) < 0)
+            if (send(connSocket, user, strlen(user), 0) < 0)
             {
-                puts("IO fault");
+                puts("Error sending username");
             }
-            else{
-                printf("Server - %s \n", serverResponse);
-            }
-        }
+            else
+            {
+                bzero(fBuffer, 512);
+                int bSize, blocks = 0;
+                // Read from and transfer file to server
+                while ((bSize = fread(fBuffer, sizeof(char), 512, file_open)) > 0)
+                {
+                    printf("File transfer in progress %d = %d \n", blocks, bSize);
 
+                    if (send(connSocket, fBuffer, bSize, 0) < 0)
+                    {
+                        exit(EXIT_FAILURE);
+                    }
+
+                    bzero(fBuffer, 512);
+                    blocks++;
+                }
+                puts("File sending concluded \n");
+                fclose(file_open);
+                int msgsSize = 0;
+            }
+
+        }
     }
 
     close(connSocket);

@@ -1,5 +1,5 @@
-server : socketServer.o
-	gcc -o server socketServer.o -lpthread
+server : socketServer.o groupData.o
+	gcc -o server socketServer.o groupData.o -lpthread
 	
 client : socketClient.o groupData.o
 	gcc -o client socketClient.o groupData.o
