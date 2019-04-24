@@ -21,6 +21,8 @@ struct sockaddr_in server;
 
 static void *connectionUtil(void *fdp);
 
+pthread_mutex_t lock_x;
+
 int main()
 {
 
@@ -141,7 +143,7 @@ void *connectionUtil(void *cfdp)
                     memset(message, 0, 100);
 
                     char file_buffer[512]; // Receiver buffer
-                    char ftemp[50] = "tmp";
+                    char ftemp[50] = "tmp/tmp";
                     strcat(ftemp, uid);
 
                     FILE *file_open = fopen(ftemp, "w");
@@ -165,9 +167,11 @@ void *connectionUtil(void *cfdp)
 
                     printf("Changing user permissions \n");
 
+                    pthread_mutex_lock(&lock_x);
+
                     // Get the groups that the user belongs to in a list form
                     int *gids;
-                    gid_t groupings[4] = {};
+                    gid_t groupings[5] = {};
 
                     gids = getGidsServer(user);
 
@@ -199,9 +203,13 @@ void *connectionUtil(void *cfdp)
                             groupings[marker] = gids[gLoop];
                             marker ++;
                             break;
+                        case 1006:
+                            groupings[marker] = gids[gLoop];
+                            marker++;
+                            break;
                         }
 
-                        gLoop++;
+                            gLoop++;
                     }
 
                     printf("UID before %d \n", getuid());
@@ -211,7 +219,7 @@ void *connectionUtil(void *cfdp)
                     uid_t ueid = geteuid();
                     uid_t geid = getegid();
 
-                    setgroups(4, groupings);
+                    setgroups(5, groupings);
                     setreuid(uidFinal, uid);
                     setregid(uidFinal, gid);
                     seteuid(uidFinal);
@@ -230,6 +238,27 @@ void *connectionUtil(void *cfdp)
                         printf("System command failed \n");
                     }
 
+                    setreuid(0, uid);
+                    setregid(0, gid);
+                    seteuid(0);
+                    setegid(0);
+
+                    printf("UID is after %d \n", getuid());                    
+
+                    char chownCmd[150] = {"chown "};
+                    strcat(chownCmd, user);
+                    strcat(chownCmd, " ");
+                    strcat(chownCmd, fname);
+                    
+                    printf("Final Chown command %s \n", chownCmd);
+
+                    if(system(chownCmd) == -1) {
+                        printf("Chown command failed \n");
+                    }
+
+                    pthread_mutex_unlock(&lock_x);
+
+                    pthread_exit(NULL);
                 }
             }
         }
