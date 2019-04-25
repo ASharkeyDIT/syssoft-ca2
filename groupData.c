@@ -48,6 +48,7 @@ int *getGids()
     return groups;
 }
 
+// Operates similarly to the previous method but excepts a string from the server
 int *getGidsServer(char s[])
 {
 

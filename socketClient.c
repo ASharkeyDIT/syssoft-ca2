@@ -26,6 +26,7 @@ int main(){
     int *gids;
     gids = getGids();
 
+    //Get UID and cast it to an integer
     uid_t uid;
     uid = getuid();
     int castedUid = (int) uid;
@@ -70,6 +71,7 @@ int main(){
     printf("0 - Root \n");
 
     // Loop through all group ids
+    // If the user is a valid member of a group they will be allowed to select the associated folder at runtime
     while(gLoop < 30){
 
         switch(gids[gLoop]){
@@ -107,6 +109,7 @@ int main(){
     char fRename[100];
     int choice;
 
+    //Gather folder choice
     scanf("%d", &choice);
     fflush(stdin);
 
@@ -151,7 +154,8 @@ int main(){
             puts("Error sending filename");
     }
     else{
-
+        puts("Sent file name");
+        //Sends the user id as a string to the server
         if (send(connSocket, suid, strlen(suid), 0) < 0)
         {
             puts("Error sending uid");
@@ -159,15 +163,15 @@ int main(){
         else{
 
             puts("Sent uid");
-
             memset(fname, 0, strlen(fname));
-
+            //Send username to the server
             if (send(connSocket, user, strlen(user), 0) < 0)
             {
                 puts("Error sending username");
             }
             else
             {
+                puts("Sent username");
                 bzero(fBuffer, 512);
                 int bSize, blocks = 0;
                 // Read from and transfer file to server
@@ -185,8 +189,21 @@ int main(){
                 }
                 puts("File sending concluded \n");
                 fclose(file_open);
-                int msgsSize = 0;
+
+                // int msgsSize = 0;
+                // char res[50];
+                // msgsSize = recv(connSocket, res, 50, 0);
+
+                // if (msgsSize == 0)
+                // {
+                //     printf("Server issue \n");
+                // }
+                // else{
+                //     printf("Server - %s \n", res);
+                // }
             }
+
+
 
         }
     }

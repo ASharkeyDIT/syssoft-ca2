@@ -52,6 +52,7 @@ int main()
 
     while (1)
     {
+        //Connect and listen for the clients
 
         connSize = sizeof(struct sockaddr_in);
         listen(serverSock, 3);
@@ -66,7 +67,7 @@ int main()
         }
         else
         {
-
+            // On client connection start thread
             pthread_t clientThread;
             int *fdp = malloc(sizeof(*fdp));
             *fdp = cSID;
@@ -85,14 +86,14 @@ void *connectionUtil(void *cfdp)
     int msgSize = 0;
 
     memset(message, 0, 500);
-
+    // Get the client socket id
     int client = *((int *)cfdp);
 
     printf("Connection established, ID : %d \n", client);
 
     while (strcmp(message, "KILL") != 0)
     {
-
+        //Receive the file name
         msgSize = recv(client, message, 100, 0);
 
         if (msgSize == 0)
@@ -103,10 +104,12 @@ void *connectionUtil(void *cfdp)
         }
         else
         {
+            
             strcpy(fname, message);
             puts(fname);
             memset(message, 0, 100);
 
+            //Receive the userid
             msgSize = recv(client, message, 100, 0);
 
             if (msgSize == 0)
@@ -117,6 +120,7 @@ void *connectionUtil(void *cfdp)
             }
             else
             {
+                
                 char uid[6];
                 strcpy(uid, message);
                 memset(message, 0, 100);
@@ -127,6 +131,7 @@ void *connectionUtil(void *cfdp)
                 int uidFinal = uidCasted;
                 printf("Client UID %d \n", uidFinal);
 
+                //Receive the Username
                 msgSize = recv(client, message, 100, 0);
 
                 if (msgSize == 0)
@@ -142,7 +147,7 @@ void *connectionUtil(void *cfdp)
                     printf("Client Username : %s \n", user);
                     memset(message, 0, 100);
 
-                    char file_buffer[512]; // Receiver buffer
+                    char file_buffer[512];
                     char ftemp[50] = "tmp/tmp";
                     strcat(ftemp, uid);
 
@@ -162,17 +167,31 @@ void *connectionUtil(void *cfdp)
                             i++;
                         }
                     }
-                    printf("Transfer Completed boi!\n");
+
+                    printf("Transfer Completed, attempting owner change\n");
                     fclose(file_open);
+
+                    //Constructs a chown command to change the owner of the temporary file to the connected user
+                    char chownCmd[150] = {"chown "};
+                    strcat(chownCmd, user);
+                    strcat(chownCmd, " ");
+                    strcat(chownCmd, ftemp);
+
+                    printf("Chown command issued : %s \n", chownCmd);
+
+                    if (system(chownCmd) == -1)
+                    {
+                        printf("Chown command failed \n");
+                    }
 
                     printf("Changing user permissions \n");
 
+                    //Acquire mutex lock
                     pthread_mutex_lock(&lock_x);
 
                     // Get the groups that the user belongs to in a list form
                     int *gids;
                     gid_t groupings[5] = {};
-
                     gids = getGidsServer(user);
 
                     int gLoop = 0;
@@ -203,6 +222,7 @@ void *connectionUtil(void *cfdp)
                             groupings[marker] = gids[gLoop];
                             marker ++;
                             break;
+                        // If user is a member of the TUDCORP group who owns the website folder
                         case 1006:
                             groupings[marker] = gids[gLoop];
                             marker++;
@@ -214,11 +234,13 @@ void *connectionUtil(void *cfdp)
 
                     printf("UID before %d \n", getuid());
 
+                    // Gather current ID's
                     uid_t uid = getuid();
                     uid_t gid = getgid();
                     uid_t ueid = geteuid();
                     uid_t geid = getegid();
 
+                    //set the id to the current user
                     setgroups(5, groupings);
                     setreuid(uidFinal, uid);
                     setregid(uidFinal, gid);
@@ -227,6 +249,7 @@ void *connectionUtil(void *cfdp)
 
                     printf("UID is now %d \n", getuid());
 
+                    // Performs a move command on the temp file to rename it and place it in the correct dictionary
                     char cmd[150] = {"mv "};
                     strcat(cmd, ftemp);
                     strcat(cmd, " ");
@@ -243,21 +266,22 @@ void *connectionUtil(void *cfdp)
                     seteuid(0);
                     setegid(0);
 
-                    printf("UID is after %d \n", getuid());                    
+                    char res[50] = {"File transfer complete :)"};
 
-                    char chownCmd[150] = {"chown "};
-                    strcat(chownCmd, user);
-                    strcat(chownCmd, " ");
-                    strcat(chownCmd, fname);
-                    
-                    printf("Final Chown command %s \n", chownCmd);
-
-                    if(system(chownCmd) == -1) {
-                        printf("Chown command failed \n");
-                    }
-
+                    //release mutex
                     pthread_mutex_unlock(&lock_x);
 
+                    // if (send(client, &res, 50, 0) < 0)
+                    // {
+                    //     puts("Error sending username");
+                    //     close(client);
+                    // }
+                    // else
+                    // {
+
+                    // }
+
+                    close(client);
                     pthread_exit(NULL);
                 }
             }
