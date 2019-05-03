@@ -89,7 +89,7 @@ void *connectionUtil(void *cfdp)
     // Get the client socket id
     int client = *((int *)cfdp);
 
-    printf("Connection established, ID : %d \n", client);
+    printf("\nConnection established, ID : %d \n", client);
 
     while (strcmp(message, "KILL") != 0)
     {
@@ -98,7 +98,7 @@ void *connectionUtil(void *cfdp)
 
         if (msgSize == 0)
         {
-            printf("Client Disconnected, id : %d \n", client);
+            printf("\nClient Disconnected, id : %d \n", client);
             memset(message, 0, 100);
             strcpy(message, "KILL");
         }
@@ -114,7 +114,7 @@ void *connectionUtil(void *cfdp)
 
             if (msgSize == 0)
             {
-                printf("Client Disconnected, id : %d \n", client);
+                printf("\nClient Disconnected, id : %d \n", client);
                 memset(message, 0, 100);
                 strcpy(message, "KILL");
             }
@@ -129,14 +129,14 @@ void *connectionUtil(void *cfdp)
                 char *ptr;
                 uidCasted = strtol(uid, &ptr, 10);
                 int uidFinal = uidCasted;
-                printf("Client UID %d \n", uidFinal);
+                printf("\nClient UID %d \n", uidFinal);
 
                 //Receive the Username
                 msgSize = recv(client, message, 100, 0);
 
                 if (msgSize == 0)
                 {
-                    printf("Client Disconnected, id : %d \n", client);
+                    printf("\nClient Disconnected, id : %d \n", client);
                     memset(message, 0, 100);
                     strcpy(message, "KILL");
                 }
@@ -144,7 +144,7 @@ void *connectionUtil(void *cfdp)
                 {
                     char user[30];
                     strcpy(user, message);
-                    printf("Client Username : %s \n", user);
+                    printf("\nClient Username : %s \n", user);
                     memset(message, 0, 100);
 
                     char file_buffer[512];
@@ -153,38 +153,33 @@ void *connectionUtil(void *cfdp)
 
                     FILE *file_open = fopen(ftemp, "w");
                     if (file_open == NULL)
-                        printf("File %s Cannot be opened file on server.\n", fname);
+                        printf("\nFile %s Cannot be opened file on server.\n", fname);
                     else
                     {
                         bzero(file_buffer, 512);
                         int block_size = 0;
                         int i = 0;
+                        char res[] = {"Got it"};
                         while ((block_size = recv(client, file_buffer, 512, 0)) > 0)
                         {
-                            printf("Data Received %d = %d\n", i, block_size);
+                            printf("\nData Received %d = %d\n", i, block_size);
                             int write_sz = fwrite(file_buffer, sizeof(char), block_size, file_open);
                             bzero(file_buffer, 512);
                             i++;
                         }
                     }
 
-                    printf("Transfer Completed, attempting owner change\n");
+                    printf("\nTransfer Completed, attempting owner change\n");
                     fclose(file_open);
 
-                    //Constructs a chown command to change the owner of the temporary file to the connected user
-                    char chownCmd[150] = {"chown "};
-                    strcat(chownCmd, user);
-                    strcat(chownCmd, " ");
-                    strcat(chownCmd, ftemp);
-
-                    printf("Chown command issued : %s \n", chownCmd);
-
-                    if (system(chownCmd) == -1)
-                    {
-                        printf("Chown command failed \n");
+                    if (chown(ftemp, uidFinal, uidFinal) == -1){
+                        printf("\n Chown failed \n");
+                    }
+                    else{
+                        printf(" \n Chown Success \n");
                     }
 
-                    printf("Changing user permissions \n");
+                    printf("\nChanging user permissions \n");
 
                     //Acquire mutex lock
                     pthread_mutex_lock(&lock_x);
@@ -203,7 +198,7 @@ void *connectionUtil(void *cfdp)
                         switch (gids[gLoop])
                         {
                         // If the user is apart of sales
-                        case 1001:
+                        case 1005:
                             groupings[marker] = gids[gLoop];
                             marker ++;
                             break;
@@ -232,7 +227,7 @@ void *connectionUtil(void *cfdp)
                             gLoop++;
                     }
 
-                    printf("UID before %d \n", getuid());
+                    printf("UID before privelege drop %d \n", getuid());
 
                     // Gather current ID's
                     uid_t uid = getuid();
@@ -242,49 +237,38 @@ void *connectionUtil(void *cfdp)
 
                     //set the id to the current user
                     setgroups(5, groupings);
-                    setreuid(uidFinal, uid);
-                    setregid(uidFinal, gid);
                     seteuid(uidFinal);
                     setegid(uidFinal);
-
-                    printf("UID is now %d \n", getuid());
 
                     // Performs a move command on the temp file to rename it and place it in the correct dictionary
                     char cmd[150] = {"mv "};
                     strcat(cmd, ftemp);
                     strcat(cmd, " ");
                     strcat(cmd, fname);
-
+                    
+                    printf("Dropped out of root to %d \n", getuid());
                     printf("Final System Command : %s \n", cmd);
 
-                    if(system(cmd) == -1){
+                    if (system(cmd) == -1)
+                    {
                         printf("System command failed \n");
                     }
 
-                    setreuid(0, uid);
-                    setregid(0, gid);
+                    //set permissions back to root
                     seteuid(0);
                     setegid(0);
 
-                    char res[50] = {"File transfer complete :)"};
+                    printf("UID escalated %d \n", getuid());
 
                     //release mutex
                     pthread_mutex_unlock(&lock_x);
 
-                    // if (send(client, &res, 50, 0) < 0)
-                    // {
-                    //     puts("Error sending username");
-                    //     close(client);
-                    // }
-                    // else
-                    // {
-
-                    // }
-
                     close(client);
                     pthread_exit(NULL);
+                    
                 }
             }
         }
+
     }
 }

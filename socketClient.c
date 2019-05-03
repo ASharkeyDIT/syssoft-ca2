@@ -76,7 +76,7 @@ int main(){
 
         switch(gids[gLoop]){
             // If the user is apart of sales
-            case 1001:
+            case 1005:
                 printf("%d - Sales \n", marker);
                 strcpy(options[marker],"Sales/");
                 marker ++;
@@ -148,9 +148,9 @@ int main(){
     char serverResponse[500];
     char clientMessage[500];
 
- 
+
     //sends the file name so server knows where to write new file to
-    if(send(connSocket , fname , (strlen(fname) + 1) , 0) < 0){
+    if(send(connSocket , fname , strlen(fname) , 0) < 0){
             puts("Error sending filename");
     }
     else{
@@ -189,25 +189,13 @@ int main(){
                 }
                 puts("File sending concluded \n");
                 fclose(file_open);
+                close(connSocket);
 
-                // int msgsSize = 0;
-                // char res[50];
-                // msgsSize = recv(connSocket, res, 50, 0);
-
-                // if (msgsSize == 0)
-                // {
-                //     printf("Server issue \n");
-                // }
-                // else{
-                //     printf("Server - %s \n", res);
-                // }
             }
-
-
 
         }
     }
+    
 
-    close(connSocket);
 }
 
